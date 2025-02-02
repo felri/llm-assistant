@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    ${cspMeta}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM Assistant</title>
+    <link rel="stylesheet" href="${styleUri}" />
+  </head>
+  <body>
+    <!-- Wrap everything in a chat container -->
+    <div class="chat-container">
+      <button id="clearAll" class="clear-btn">CLEAR</button>
+
+      <!-- This is the snippet area that can grow -->
+      <div id="snippet-container">
+        <p>No snippets captured yet.</p>
+      </div>
+
+      <!-- The input area is wrapped so it can stick to the bottom -->
+      <div class="input-container">
+        <h3>Prompt</h3>
+        <textarea
+          id="promptInput"
+          placeholder="Enter your prompt here"
+        ></textarea>
+        <br />
+        <div class="controls">
+          <div class="left-controls">
+            <label for="llmProvider">LLM Provider:</label>
+            <select id="llmProvider">
+              <option value="openai">ChatGPT</option>
+              <option value="deepseek">Deepseek</option>
+              <option value="ollama">Ollama (Local)</option>
+              <option value="claude">Claude</option>
+              <option value="gemini">Gemini</option>
+              <option value="qwen">Qwen</option>
+            </select>
+
+            <label
+              id="endpointUrlLabel"
+              for="endpointUrlInput"
+              style="display: none"
+              >Local Server URL:</label
+            >
+            <input
+              type="text"
+              id="endpointUrlInput"
+              placeholder="http://localhost:11434"
+              style="display: none"
+            />
+            <label
+              id="ollamaModelLabel"
+              for="ollamaModelInput"
+              style="display: none"
+              >Model:</label
+            >
+            <input
+              type="text"
+              id="ollamaModelInput"
+              placeholder="Name of the model"
+              style="display: none"
+            />
+
+            <label for="apiKeyInput" id="apiKeyLabel">API Key:</label>
+            <input type="text" id="apiKeyInput" placeholder="Enter API Key" />
+
+            <label for="modelSelect" id="modelSelectLabel">Model:</label>
+            <select id="modelSelect">
+              <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+            </select>
+          </div>
+          <button id="sendPrompt" class="send-btn">Send</button>
+        </div>
+      </div>
+    </div>
+    <script src="${scriptUri}"></script>
+  </body>
+</html>

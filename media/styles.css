@@ -1,0 +1,119 @@
+* {
+  box-sizing: border-box !important;
+}
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 97vh;
+}
+
+/* Let the snippet container take available space and scroll if needed */
+#snippet-container {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* The input container will push itself to the bottom */
+.input-container {
+  margin-top: auto;
+}
+
+/* (Your existing global styles can remain here) */
+* {
+  scroll-behavior: smooth !important;
+}
+body {
+  font-family: sans-serif;
+  padding: 10px;
+}
+pre {
+  background-color: #1f1f1f;
+  color: #ccc;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+code {
+  background-color: #1f1f1f;
+}
+select,
+input,
+select:focus,
+input:focus {
+  background: none;
+  color: #ccc;
+  padding: 5px;
+  box-shadow: none;
+  outline: none;
+  border: none;
+}
+textarea,
+textarea:focus {
+  margin: 10px 0;
+  background-color: #1f1f1f;
+  color: #ccc;
+  width: 100%;
+  font-family: monospace;
+  font-size: 1em;
+  min-height: 50px;
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+button {
+  margin-top: 0.5em;
+  background-color: #1f1f1f;
+  color: #ccc;
+  border: 1px solid #3f3f3f;
+  cursor: pointer;
+}
+.clear-btn {
+  display: block;
+  margin-bottom: 10px;
+  padding: 5px 10px;
+  font-weight: bold;
+}
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.left-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.send-btn {
+  margin-left: auto;
+  padding: 10px 20px;
+  font-size: 1.2em;
+}
+.controls label {
+  margin-right: 5px;
+}
+.snippet {
+  margin-bottom: 1em;
+  border: 1px solid #3f3f3f;
+  padding: 10px;
+}
+.snippet.user {
+  border-color: orange;
+}
+.snippet.assistant {
+  border-color: green;
+}
+.snippet textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+#promptInput {
+  min-height: 250px;
+}
