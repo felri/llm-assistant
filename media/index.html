@@ -8,6 +8,10 @@
     <link rel="stylesheet" href="${styleUri}" />
   </head>
   <body>
+    <!-- Injected initial config -->
+    <script nonce="${nonce}">
+      window.initialConfig = ${initialConfig};
+    </script>
     <!-- Wrap everything in a chat container -->
     <div class="chat-container">
       <button id="clearAll" class="clear-btn">CLEAR</button>

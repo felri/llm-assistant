@@ -29,19 +29,38 @@ const providerModels = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
+  const initialConfig = window.initialConfig || {};
   const providerSelect = document.getElementById("llmProvider");
   const apiKeyInput = document.getElementById("apiKeyInput");
   const endpointUrlInput = document.getElementById("endpointUrlInput"); // new input for local endpoints (e.g., for Ollama)
   const model = document.getElementById("modelSelect");
   const ollamaModel = document.getElementById("ollamaModelInput");
-
+  console.log(initialConfig);
   // -------------------------------------------
   // Restore saved provider from local storage, if any.
   // -------------------------------------------
-  const savedProvider = localStorage.getItem("selectedProvider");
-  if (savedProvider) {
-    providerSelect.value = savedProvider;
+  if (initialConfig.selectedProvider) {
+    providerSelect.value = initialConfig.selectedProvider;
   }
+
+  if (initialConfig.apiKeys[initialConfig.selectedProvider.toLowerCase()]) {
+    apiKeyInput.value = initialConfig.apiKeys[initialConfig.selectedProvider.toLowerCase()];
+  }
+
+  if (initialConfig.models[initialConfig.selectedProvider.toLowerCase()]) {
+    if (initialConfig.selectedProvider === "ollama") {
+      ollamaModel.value = initialConfig.models[initialConfig.selectedProvider.toLowerCase()];
+    } else {
+      model.value = initialConfig.models[initialConfig.selectedProvider.toLowerCase()];
+    }
+  }
+
+  console.log(model.value);
+
+  if (initialConfig?.selectedProvider === "ollama" && initialConfig.model.endpoints.ollama) {
+    endpointUrlInput.value = initialConfig.model.endpoints.ollama;
+  }
+
 
   // Utility: update models dropdown.
   function updateModelDropdown() {
@@ -129,14 +148,22 @@ document.addEventListener("DOMContentLoaded", () => {
   // Save provider setting when it is changed.
   // -------------------------------------------
   providerSelect.addEventListener("change", () => {
-    localStorage.setItem("selectedProvider", providerSelect.value);
+    vscode.postMessage({
+      command: "updateSetting",
+      key: "selectedProvider",
+      value: providerSelect.value
+    });
     updateProviderDependentFields();
   });
 
   // Save changes for API key.
   apiKeyInput.addEventListener("change", () => {
     const currentProvider = providerSelect.value;
-    localStorage.setItem(`apiKey_${currentProvider}`, apiKeyInput.value);
+    vscode.postMessage({
+      command: "updateSetting",
+      key: "apiKey_" + currentProvider,
+      value: apiKeyInput.value
+    });
   });
 
   // Save changes for endpoint URL (for local providers).
@@ -146,6 +173,11 @@ document.addEventListener("DOMContentLoaded", () => {
       `endpointURL_${currentProvider}`,
       endpointUrlInput.value
     );
+    vscode.postMessage({
+      command: "updateSetting",
+      key: "endpointURL_" + currentProvider,
+      value: endpointUrlInput.value
+    });
   });
 
   // -------------------------------------------
@@ -153,7 +185,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------------------
   model.addEventListener("change", () => {
     const currentProvider = providerSelect.value;
-    localStorage.setItem(`model_${currentProvider}`, model.value);
+    vscode.postMessage({
+      command: "updateSetting",
+      key: "model_" + currentProvider,
+      value: currentProvider === 'ollama' ? ollamaModel.value : model.value
+    });
   });
 
   // -------------------------------------------

@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import { callLLM, LLMResponseOptions } from "./llmApis";
-import { registerAutoCompleteProvider } from "./autoComplete";
+import { registerAutoCompleteProvider, registerTriggerCommand } from "./autoComplete";
 interface Snippet {
   text: string;
   file: string;
@@ -12,27 +12,51 @@ interface Snippet {
 let snippetStore: Snippet[] = [];
 let panel: vscode.WebviewPanel | undefined;
 
-function getWebviewContent(
+// Utility function to generate a random nonce
+function getNonce(): string {
+  let text = "";
+  const possible =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (let i = 0; i < 32; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
+}
+
+export function getWebviewContent(
   context: vscode.ExtensionContext,
-  webview: vscode.Webview
+  webview: vscode.Webview,
+  initialConfig: Record<string, any>
 ): string {
-  const htmlPath = path.join(
-    context.extensionUri.fsPath,
-    "media",
-    "index.html"
-  );
+  const htmlPath = path.join(context.extensionUri.fsPath, "media", "index.html");
   let html = fs.readFileSync(htmlPath, "utf8");
+
   const scriptUri = webview.asWebviewUri(
     vscode.Uri.joinPath(context.extensionUri, "media", "main.js")
   );
   const styleUri = webview.asWebviewUri(
     vscode.Uri.joinPath(context.extensionUri, "media", "styles.css")
   );
-  const cspMeta = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} https:; script-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline';">`;
+
+  // Generate a nonce to allow inline scripts
+  const nonce = getNonce();
+
+  // Create the CSP meta tag using the nonce for scripts.
+  const cspMeta = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} https:; script-src 'nonce-${nonce}' ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline';">`;
+
+  // Replace placeholders in your HTML template.
   html = html
     .replace("${cspMeta}", cspMeta)
     .replace(/\${scriptUri}/g, scriptUri.toString())
-    .replace(/\${styleUri}/g, styleUri.toString());
+    .replace(/\${styleUri}/g, styleUri.toString())
+    // Inject the initial config into the inline script.
+    .replace(
+      "${initialConfig}",
+      JSON.stringify(initialConfig)
+    )
+    // Also inject the nonce for the inline script.
+    .replace(/\${nonce}/g, nonce);
+
   return html;
 }
 
@@ -46,7 +70,29 @@ function buildConversationPrompt(snippets: Snippet[]): string {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-  // registerAutoCompleteProvider(context);
+  // Register the inline completion provider.
+  registerAutoCompleteProvider(context);
+  // Register the manual trigger command.
+  registerTriggerCommand(context);
+
+  const initialConfig = {
+    selectedProvider: context.globalState.get("selectedProvider", "openai"),
+    // For each provider you would normally store the API key, model, endpoint, etc.
+    apiKeys: {
+      openai: context.globalState.get("apiKey_openai", ""),
+      deepseek: context.globalState.get("apiKey_deepseek", ""),
+      claude: context.globalState.get("apiKey_claude", ""),
+    },
+    models: {
+      openai: context.globalState.get("model_openai", "gpt-3.5-turbo"),
+      ollama: context.globalState.get("model_ollama", ""),
+      claude: context.globalState.get("model_claude", ""),
+      deepseek: context.globalState.get("model_deepseek", "")
+    },
+    endpoints: {
+      ollama: context.globalState.get("endpointURL_ollama", "http://localhost:11434/api/chat"),
+    }
+  };
 
   const captureSelection = vscode.commands.registerCommand(
     "extension.captureSelection",
@@ -80,7 +126,7 @@ export function activate(context: vscode.ExtensionContext) {
             ],
           }
         );
-        panel.webview.html = getWebviewContent(context, panel.webview);
+        panel.webview.html = getWebviewContent(context, panel.webview, initialConfig);
         panel.webview.onDidReceiveMessage((message) => {
           switch (message.command) {
             case "updateSnippet": {
@@ -147,6 +193,11 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
               }
               vscode.window.showErrorMessage(alert);
+            }
+            case "updateSetting": {
+              const { key, value } = message;
+              context.globalState.update(key, value);
+              break;
             }
             case "sendPrompt": {
               // Extract endpointUrl along with the others.
@@ -235,4 +286,4 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(captureSelection);
 }
 
-export function deactivate() {}
+export function deactivate() { }

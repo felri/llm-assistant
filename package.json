@@ -6,7 +6,9 @@
   "engines": {
     "vscode": "^1.96.0"
   },
-  "activationEvents": [],
+  "activationEvents": [
+    "*"
+  ],
   "categories": [
     "Other"
   ],
@@ -16,12 +18,21 @@
       {
         "command": "extension.captureSelection",
         "title": "Capture Code Selection"
+      },
+      {
+        "command": "extension.triggerGhostCompletion",
+        "title": "Trigger Ghost Completion"
       }
     ],
     "keybindings": [
       {
         "command": "extension.captureSelection",
-        "key": "shift+alt+c",
+        "key": "ctrl+alt+c",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "extension.triggerGhostCompletion",
+        "key": "ctrl+space",
         "when": "editorTextFocus"
       }
     ]

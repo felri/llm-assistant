@@ -1,8 +1,6 @@
 import * as vscode from "vscode";
-import { callLLM, LLMResponseOptions } from "./llmApis"; // adjust path as needed
+import { callLLM, LLMResponseOptions } from "./llmApis";
 
-// Define the persistent configuration for auto-completion.
-// Later you can update these values from a config UI.
 interface AutoCompleteConfig {
   provider: string;
   model: string;
@@ -10,7 +8,6 @@ interface AutoCompleteConfig {
   endpointUrl: string;
   // The maximum input “token” count (using an approximation of one token ≃ 4 characters)
   maxInputTokens: number;
-  // Maximum number of tokens to generate in the output
   maxOutputTokens: number;
   // How much of the allowed input comes from above vs. below the cursor.
   contextAbovePercentage: number;
@@ -19,8 +16,8 @@ interface AutoCompleteConfig {
 
 const defaultAutoCompleteConfig: AutoCompleteConfig = {
   provider: "ollama",
-  model: "codellama:7b",
-  apiKey: "", // fill in if needed or let the user configure it later
+  model: "qwen2.5-coder:14b",
+  apiKey: "",
   endpointUrl: "",
   maxInputTokens: 2048,
   maxOutputTokens: 128,
@@ -28,14 +25,17 @@ const defaultAutoCompleteConfig: AutoCompleteConfig = {
   contextBelowPercentage: 0.0,
 };
 
-// To avoid spamming the back end on every keystroke, we cache the last request details
+// Global flag to allow completions only when manually triggered.
+let manualTrigger = false;
+
+// To avoid spamming the back end on every invocation, we cache the last request details.
 let lastRequestPosition: { uri: string; offset: number } | undefined;
 let lastCompletionPromise: Promise<string> | undefined;
 
 /**
  * Extract a text “context” around the cursor.
  * We approximate the allowed input by taking config.maxInputTokens * 4 characters.
- * We then split that into a portion coming from before (70%) and after (30%) the cursor.
+ * We then split that into a portion coming from before and after the cursor.
  */
 function extractContext(
   document: vscode.TextDocument,
@@ -75,11 +75,12 @@ function requestCompletion(
       model: config.model,
       maxOutputTokens: config.maxOutputTokens,
       onChunk: (chunk: string) => {
-        console.log(chunk);
         aggregated += chunk;
       },
       onComplete: () => {
-        resolve(aggregated);
+        let lines = aggregated.split('\n');
+        lines = lines.filter(line => !line.includes('```'));
+        resolve(lines.join('\n').replace(/^\s+/, ''));
       },
     };
     callLLM(config.provider, options).catch((error: Error) => {
@@ -91,9 +92,9 @@ function requestCompletion(
 /**
  * A simple inline completion provider.
  * When VS Code asks for inline completions, we:
- *   • Check if we’re at the same position as a previous request (to reuse a cached result)
- *   • Otherwise, we debounce (300ms) before extracting the context and making an LLM call
- *   • We then return the generated text as an InlineCompletionItem
+ *   • Only provide a completion if it was manually triggered.
+ *   • Otherwise, we return an empty list.
+ * When triggered, we debounce (300ms) before extracting the context and making an LLM call.
  */
 class InlineCompletionProvider implements vscode.InlineCompletionItemProvider {
   provideInlineCompletionItems(
@@ -102,6 +103,13 @@ class InlineCompletionProvider implements vscode.InlineCompletionItemProvider {
     context: vscode.InlineCompletionContext,
     token: vscode.CancellationToken
   ): vscode.ProviderResult<vscode.InlineCompletionList> {
+    // Only provide completions if the manual trigger flag is set.
+    if (!manualTrigger) {
+      return new vscode.InlineCompletionList([]);
+    }
+    // Reset the flag so that we don't run automatically again.
+    manualTrigger = false;
+
     const currentUri = document.uri.toString();
     const currentOffset = document.offsetAt(position);
 
@@ -138,14 +146,14 @@ class InlineCompletionProvider implements vscode.InlineCompletionItemProvider {
 
         const prompt =
           contextText +
-          "\nONLY RETURN CODE. Complete above line with one short snippet:\n";
+          "\nReturn only code, nothing else, try to predict what the user wants to write in the next few tokens, one line maximum:\n";
         requestCompletion(prompt, defaultAutoCompleteConfig)
           .then((suggestion) => {
             resolve(suggestion);
           })
           .catch((error) => {
             console.error("Error during auto-completion:", error);
-            resolve(error);
+            resolve("");
           });
       }, 300);
     });
@@ -171,4 +179,21 @@ export function registerAutoCompleteProvider(context: vscode.ExtensionContext) {
       new InlineCompletionProvider()
     )
   );
+}
+
+/**
+ * Register a command to trigger ghost completions manually.
+ * When the command is executed, we set the manualTrigger flag and then execute
+ * VS Code's built-in command to trigger inline suggestions.
+ */
+export function registerTriggerCommand(context: vscode.ExtensionContext) {
+  const triggerCommand = vscode.commands.registerCommand(
+    "extension.triggerGhostCompletion",
+    () => {
+      manualTrigger = true;
+      // Trigger the inline suggestion widget.
+      vscode.commands.executeCommand("editor.action.inlineSuggest.trigger");
+    }
+  );
+  context.subscriptions.push(triggerCommand);
 }

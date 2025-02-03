@@ -59,7 +59,7 @@ input:focus {
 textarea,
 textarea:focus {
   margin: 10px 0;
-  background-color: #1f1f1f;
+  background-color: transparent;
   color: #ccc;
   width: 100%;
   font-family: monospace;
