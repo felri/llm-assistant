@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
 // Extended options so that local providers (like Ollama) can pass an endpoint URL.
 export interface LLMResponseOptions {
@@ -29,7 +30,6 @@ export async function callOpenAiWithPackage(
     const stream = await openai.chat.completions.create({
       model,
       messages: [{ role: "user", content: prompt }],
-      store: true,
       stream: true,
     });
     for await (const chunk of stream) {
@@ -61,7 +61,6 @@ export async function callDeepseek(options: LLMResponseOptions): Promise<void> {
     const stream = await deepseek.chat.completions.create({
       model,
       messages: [{ role: "user", content: prompt }],
-      store: true,
       stream: true,
     });
     for await (const chunk of stream) {
@@ -92,13 +91,12 @@ export async function callDeepseek(options: LLMResponseOptions): Promise<void> {
  */
 export async function callOllama(options: LLMResponseOptions): Promise<void> {
   const { prompt, model, onChunk, onComplete, endpointUrl } = options;
-  // Use the provided endpointUrl or default to http://localhost:11434.
   const baseURL =
     endpointUrl && endpointUrl.trim() !== ""
       ? endpointUrl
-      : "http://localhost:11434";
-
-  const ollama = new OpenAI({ apiKey: 'ollama', baseURL });
+      : "http://localhost:11434/v1/";
+  
+  const ollama = new OpenAI({ apiKey: "ollama", baseURL });
 
   try {
     const stream = await ollama.chat.completions.create({
@@ -124,8 +122,23 @@ export async function callOllama(options: LLMResponseOptions): Promise<void> {
  * Placeholder implementation for Claude.
  */
 export async function callClaude(options: LLMResponseOptions): Promise<void> {
-  options.onChunk("Claude streaming not implemented yet.");
-  options.onComplete();
+  const { apiKey, prompt, model, onChunk, onComplete } = options;
+  const client = new Anthropic({ apiKey });
+
+  try {
+    await client.messages.stream({
+      messages: [{ role: 'user', content: prompt }],
+      model,
+      stream: true,
+      max_tokens: 1024,
+    }).on('text', onChunk);
+
+    onComplete();
+  } catch (error: any) {
+    console.error("Error in callDeepseek:", error);
+    onChunk(`\n[Error calling DeepSeek: ${error.message || error}]`);
+    onComplete();
+  }
 }
 
 /**

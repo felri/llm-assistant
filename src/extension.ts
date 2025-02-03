@@ -159,16 +159,6 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage("Please provide an API key!");
                 return;
               }
-              // For Ollama, we require an endpoint URL.
-              if (
-                provider.toLowerCase() === "ollama" &&
-                (!endpointUrl || endpointUrl.trim() === "")
-              ) {
-                vscode.window.showErrorMessage(
-                  "Please provide the local server URL for Ollama!"
-                );
-                return;
-              }
 
               if (!prompt.trim().length && !snippetStore.length) {
                 vscode.window.showErrorMessage(

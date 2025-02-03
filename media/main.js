@@ -14,9 +14,18 @@ const providerModels = {
     "gpt-4o",
   ],
   deepseek: ["deepseek-chat", "deepseek-reasoner"],
-  claude: ["claude-v1", "claude-instant"],
-  gemini: ["gemini-base"],
-  qwen: ["qwen-small"],
+  claude: [
+    "claude-3-5-sonnet-latest",
+    "claude-3-5-haiku-latest",
+    "claude-3-opus-latest",
+    "claude-3-opus-20240229",
+    "claude-3-haiku-20240307",
+    "claude-3-5-sonnet-20240620",
+    "claude-3-5-haiku-20241022",
+    "claude-3-5-sonnet-20241022",
+  ],
+  // gemini: ["gemini-base"],
+  // qwen: ["qwen-small"],
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -267,7 +276,7 @@ function autoResize(textArea) {
   dummy.style.width = computed.width;
   dummy.innerText = textArea.value;
   document.body.appendChild(dummy);
-  const newHeight = parseInt(dummy.scrollHeight) + 60;
+  const newHeight = parseInt(dummy.scrollHeight) + 30;
   document.body.removeChild(dummy);
   textArea.style.height = newHeight.toString() + "px";
 }
@@ -291,7 +300,7 @@ document.getElementById("sendPrompt").addEventListener("click", () => {
   if (provider !== "ollama" && (!apiKey || apiKey.trim() === "")) {
     vscode.postMessage({
       command: "showAlert",
-      alert: "Please provide an API key before sending a prompt."
+      alert: "Please provide an API key before sending a prompt.",
     });
     return;
   }
@@ -299,7 +308,7 @@ document.getElementById("sendPrompt").addEventListener("click", () => {
   if (provider === "ollama" && (!modelValue || modelValue.trim() === "")) {
     vscode.postMessage({
       command: "showAlert",
-      alert: "Please provide a model name before sending a prompt."
+      alert: "Please provide a model name before sending a prompt.",
     });
     return;
   }
