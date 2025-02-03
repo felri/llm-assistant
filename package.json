@@ -3,6 +3,11 @@
   "displayName": "LLM Assistant",
   "description": "",
   "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/felri/llm-assistant"
+  },
+  "publisher": "FelipeMelo",
   "engines": {
     "vscode": "^1.96.0"
   },

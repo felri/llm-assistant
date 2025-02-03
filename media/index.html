@@ -9,8 +9,8 @@
   </head>
   <body>
     <!-- Injected initial config -->
-    <script nonce="${nonce}">
-      window.initialConfig = ${initialConfig};
+    <script nonce="__NONCE__">
+      window.initialConfig = __CONFIG__;
     </script>
     <!-- Wrap everything in a chat container -->
     <div class="chat-container">
@@ -50,7 +50,7 @@
             <input
               type="text"
               id="endpointUrlInput"
-              placeholder="http://localhost:11434/api/chat"
+              placeholder="http://localhost:11434/v1/"
               style="display: none"
             />
             <label

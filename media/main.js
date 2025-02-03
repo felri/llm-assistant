@@ -28,43 +28,53 @@ const providerModels = {
   // qwen: ["qwen-small"],
 };
 
-document.addEventListener("DOMContentLoaded", () => {
-  const initialConfig = window.initialConfig || {};
+// -------------------------------------------
+// Restore saved provider from global state
+// -------------------------------------------
+function loadGlobalState() {
   const providerSelect = document.getElementById("llmProvider");
   const apiKeyInput = document.getElementById("apiKeyInput");
   const endpointUrlInput = document.getElementById("endpointUrlInput"); // new input for local endpoints (e.g., for Ollama)
   const model = document.getElementById("modelSelect");
   const ollamaModel = document.getElementById("ollamaModelInput");
-  console.log(initialConfig);
-  // -------------------------------------------
-  // Restore saved provider from local storage, if any.
-  // -------------------------------------------
-  if (initialConfig.selectedProvider) {
-    providerSelect.value = initialConfig.selectedProvider;
+
+  const config = window.initialConfig || {};
+
+  console.log('config', config);
+  if (config.selectedProvider) {
+    providerSelect.value = config.selectedProvider;
   }
 
-  if (initialConfig.apiKeys[initialConfig.selectedProvider.toLowerCase()]) {
-    apiKeyInput.value = initialConfig.apiKeys[initialConfig.selectedProvider.toLowerCase()];
+  if (config.apiKeys[config.selectedProvider.toLowerCase()]) {
+    apiKeyInput.value = config.apiKeys[config.selectedProvider.toLowerCase()];
+  } else {
+    apiKeyInput.value = "";
   }
 
-  if (initialConfig.models[initialConfig.selectedProvider.toLowerCase()]) {
-    if (initialConfig.selectedProvider === "ollama") {
-      ollamaModel.value = initialConfig.models[initialConfig.selectedProvider.toLowerCase()];
+  if (config.models[config.selectedProvider.toLowerCase()]) {
+    if (config.selectedProvider === "ollama") {
+      ollamaModel.value = config.models[config.selectedProvider.toLowerCase()];
     } else {
-      model.value = initialConfig.models[initialConfig.selectedProvider.toLowerCase()];
+      model.value = config.models[config.selectedProvider.toLowerCase()];
     }
   }
 
-  console.log(model.value);
-
-  if (initialConfig?.selectedProvider === "ollama" && initialConfig.model.endpoints.ollama) {
-    endpointUrlInput.value = initialConfig.model.endpoints.ollama;
+  if (config?.selectedProvider === "ollama" && config.endpoints.ollama) {
+    endpointUrlInput.value = config.endpoints.ollama;
   }
+}
 
+document.addEventListener("DOMContentLoaded", () => {
+  const providerSelect = document.getElementById("llmProvider");
+  const apiKeyInput = document.getElementById("apiKeyInput");
+  const endpointUrlInput = document.getElementById("endpointUrlInput"); // new input for local endpoints (e.g., for Ollama)
+  const model = document.getElementById("modelSelect");
+  const ollamaModel = document.getElementById("ollamaModelInput");
+
+  loadGlobalState();
 
   // Utility: update models dropdown.
-  function updateModelDropdown() {
-    const provider = providerSelect.value;
+  function updateModelDropdown(provider) {
     model.innerHTML = ""; // clear current options
     const models = providerModels[provider.toLowerCase()] || [];
     models.forEach((modelName) => {
@@ -76,107 +86,87 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Update fields based on the currently selected provider.
-  function updateProviderDependentFields() {
-    updateModelDropdown();
-    const provider = providerSelect.value;
-
-    // -------------------------------------------
-    // Restore saved model for this provider (if any).
-    // We use a key of the form "model_<provider>"
-    // -------------------------------------------
-    if (provider === "ollama") {
-      const savedOllamaModel = localStorage.getItem(`model_${provider}`);
-      ollamaModel.value = savedOllamaModel || "";
-    } else {
-      const savedModel = localStorage.getItem(`model_${provider}`);
-      if (savedModel) {
-        model.value = savedModel;
-      }
-    }
+  function updateProviderDependentFields(provider) {
+    updateModelDropdown(provider);
 
     // If using a local provider (e.g., Ollama), show endpoint URL input instead of API key.
     if (provider === "ollama") {
       apiKeyInput.style.display = "none";
+      model.style.display = "none";
+
       if (document.getElementById("apiKeyLabel")) {
         document.getElementById("apiKeyLabel").style.display = "none";
       }
-      model.style.display = "none";
       if (document.getElementById("modelSelectLabel")) {
         document.getElementById("modelSelectLabel").style.display = "none";
       }
 
       endpointUrlInput.style.display = "inline";
+      ollamaModel.style.display = "inline";
+
       if (document.getElementById("endpointUrlLabel")) {
         document.getElementById("endpointUrlLabel").style.display = "inline";
       }
-      ollamaModel.style.display = "inline";
       if (document.getElementById("ollamaModelLabel")) {
         document.getElementById("ollamaModelLabel").style.display = "inline";
       }
-
-      const savedEndpoint = localStorage.getItem(`endpointURL_${provider}`);
-      endpointUrlInput.value = savedEndpoint || "";
     } else {
       // For providers that use an API key.
       apiKeyInput.style.display = "inline";
+      model.style.display = "inline";
+      apiKeyInput.value = window.initialConfig.apiKeys[provider] ?? "";
+
       if (document.getElementById("apiKeyLabel")) {
         document.getElementById("apiKeyLabel").style.display = "inline";
       }
-      model.style.display = "inline";
       if (document.getElementById("modelSelectLabel")) {
         document.getElementById("modelSelectLabel").style.display = "inline";
       }
 
       endpointUrlInput.style.display = "none";
+      ollamaModel.style.display = "none";
       if (document.getElementById("endpointUrlLabel")) {
         document.getElementById("endpointUrlLabel").style.display = "none";
       }
-      ollamaModel.style.display = "none";
       if (document.getElementById("ollamaModelLabel")) {
         document.getElementById("ollamaModelLabel").style.display = "none";
       }
-
-      const savedApiKey = localStorage.getItem(`apiKey_${provider}`);
-      apiKeyInput.value = savedApiKey || "";
     }
   }
 
   // Initial update.
-  updateProviderDependentFields();
+  const config = window.initialConfig;
+  updateProviderDependentFields(config.selectedProvider);
 
   // -------------------------------------------
   // Save provider setting when it is changed.
   // -------------------------------------------
   providerSelect.addEventListener("change", () => {
     vscode.postMessage({
-      command: "updateSetting",
+      command: "configUpdate",
       key: "selectedProvider",
-      value: providerSelect.value
+      value: providerSelect.value,
     });
-    updateProviderDependentFields();
+    updateProviderDependentFields(providerSelect.value);
   });
 
   // Save changes for API key.
   apiKeyInput.addEventListener("change", () => {
     const currentProvider = providerSelect.value;
     vscode.postMessage({
-      command: "updateSetting",
+      command: "configUpdate",
       key: "apiKey_" + currentProvider,
-      value: apiKeyInput.value
+      value: apiKeyInput.value,
     });
   });
 
   // Save changes for endpoint URL (for local providers).
   endpointUrlInput.addEventListener("change", () => {
     const currentProvider = providerSelect.value;
-    localStorage.setItem(
-      `endpointURL_${currentProvider}`,
-      endpointUrlInput.value
-    );
     vscode.postMessage({
-      command: "updateSetting",
+      command: "configUpdate",
       key: "endpointURL_" + currentProvider,
-      value: endpointUrlInput.value
+      value: endpointUrlInput.value,
     });
   });
 
@@ -186,9 +176,9 @@ document.addEventListener("DOMContentLoaded", () => {
   model.addEventListener("change", () => {
     const currentProvider = providerSelect.value;
     vscode.postMessage({
-      command: "updateSetting",
+      command: "configUpdate",
       key: "model_" + currentProvider,
-      value: currentProvider === 'ollama' ? ollamaModel.value : model.value
+      value: model.value,
     });
   });
 
@@ -197,20 +187,17 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------------------------
   ollamaModel.addEventListener("change", () => {
     const currentProvider = providerSelect.value;
-    localStorage.setItem(`model_${currentProvider}`, ollamaModel.value);
+    vscode.postMessage({
+      command: "configUpdate",
+      key: "model_" + currentProvider,
+      value: ollamaModel.value,
+    });
   });
 
   // Attach event listener to the CLEAR button.
   document.getElementById("clearAll").addEventListener("click", () => {
     vscode.postMessage({ command: "clearAll" });
   });
-
-  // Auto-scroll snippet container and whole body when focus is gained.
-  // window.addEventListener("focus", () => {
-  //   const container = document.getElementById("snippet-container");
-  //   container.scrollTop = container.scrollHeight;
-  //   window.scrollTo(0, document.body.scrollHeight);
-  // });
 });
 
 // Listen for messages from the extension.
@@ -218,6 +205,9 @@ window.addEventListener("message", (event) => {
   const message = event.data;
   if (message.command === "update") {
     updateSnippetList(message.snippets);
+  }
+  if (message.command === "configUpdated") {
+    loadGlobalState();
   }
   if (message.command === "clearPrompt") {
     document.getElementById("promptInput").value = "";
@@ -296,8 +286,13 @@ function updateSnippetList(snippets) {
 }
 
 function autoResize(textArea) {
+  // Reset the height to "auto" so we correctly measure when content shrinks
+  textArea.style.height = "auto";
+
   const dummy = document.createElement("div");
   const computed = window.getComputedStyle(textArea);
+
+  // Apply the same styling as the textarea
   dummy.style.position = "absolute";
   dummy.style.visibility = "hidden";
   dummy.style.zIndex = "-1";
@@ -310,11 +305,29 @@ function autoResize(textArea) {
   dummy.style.border = computed.border;
   dummy.style.boxSizing = computed.boxSizing;
   dummy.style.width = computed.width;
+
+  // Copy the textarea content
   dummy.innerText = textArea.value;
+
+  // Append the dummy element to the document to perform layout measurements
   document.body.appendChild(dummy);
-  const newHeight = parseInt(dummy.scrollHeight) + 30;
+
+  // Compute extra spacing based on the line height to ensure there's no clipping.
+  // We use a fraction (e.g., 30%) of the computed line height as additional padding.
+  let extraSpace = 0;
+  const lineHeight = parseFloat(computed.lineHeight);
+  if (!isNaN(lineHeight)) {
+    extraSpace = lineHeight * 0.3;
+  } else {
+    // Fallback in case the computed lineHeight isn't a number
+    extraSpace = 4;
+  }
+
+  // Set the textarea's height to the dummy's scrollHeight plus the extra space
+  textArea.style.height = dummy.scrollHeight + extraSpace + "px";
+
+  // Clean up the dummy element
   document.body.removeChild(dummy);
-  textArea.style.height = newHeight.toString() + "px";
 }
 
 // Attach event listener to the "Send" button.

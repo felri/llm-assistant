@@ -3,10 +3,25 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import { callLLM, LLMResponseOptions } from "./llmApis";
-import { registerAutoCompleteProvider, registerTriggerCommand } from "./autoComplete";
+import {
+  registerAutoCompleteProvider,
+  registerTriggerCommand,
+} from "./autoComplete";
 interface Snippet {
   text: string;
   file: string;
+}
+
+type Provider = "openai" | "deepseek" | "claude" | "ollama";
+
+interface Config {
+  selectedProvider: Provider;
+  apiKeys: Record<Provider, string>;
+  models: Record<Provider, string>;
+  endpoints: Partial<Record<Provider, string>>;
+  autoCompleteProvider: Provider;
+  autoCompleteModels: Record<Provider, string>;
+  autoCompleteEndpoints: Partial<Record<Provider, string>>;
 }
 
 let snippetStore: Snippet[] = [];
@@ -26,9 +41,13 @@ function getNonce(): string {
 export function getWebviewContent(
   context: vscode.ExtensionContext,
   webview: vscode.Webview,
-  initialConfig: Record<string, any>
+  config: Record<string, any>
 ): string {
-  const htmlPath = path.join(context.extensionUri.fsPath, "media", "index.html");
+  const htmlPath = path.join(
+    context.extensionUri.fsPath,
+    "media",
+    "index.html"
+  );
   let html = fs.readFileSync(htmlPath, "utf8");
 
   const scriptUri = webview.asWebviewUri(
@@ -49,13 +68,8 @@ export function getWebviewContent(
     .replace("${cspMeta}", cspMeta)
     .replace(/\${scriptUri}/g, scriptUri.toString())
     .replace(/\${styleUri}/g, styleUri.toString())
-    // Inject the initial config into the inline script.
-    .replace(
-      "${initialConfig}",
-      JSON.stringify(initialConfig)
-    )
-    // Also inject the nonce for the inline script.
-    .replace(/\${nonce}/g, nonce);
+    .replace("__CONFIG__", JSON.stringify(config))
+    .replace(/__NONCE__/g, nonce);
 
   return html;
 }
@@ -75,23 +89,52 @@ export function activate(context: vscode.ExtensionContext) {
   // Register the manual trigger command.
   registerTriggerCommand(context);
 
-  const initialConfig = {
-    selectedProvider: context.globalState.get("selectedProvider", "openai"),
-    // For each provider you would normally store the API key, model, endpoint, etc.
-    apiKeys: {
-      openai: context.globalState.get("apiKey_openai", ""),
-      deepseek: context.globalState.get("apiKey_deepseek", ""),
-      claude: context.globalState.get("apiKey_claude", ""),
-    },
-    models: {
-      openai: context.globalState.get("model_openai", "gpt-3.5-turbo"),
-      ollama: context.globalState.get("model_ollama", ""),
-      claude: context.globalState.get("model_claude", ""),
-      deepseek: context.globalState.get("model_deepseek", "")
-    },
-    endpoints: {
-      ollama: context.globalState.get("endpointURL_ollama", "http://localhost:11434/api/chat"),
-    }
+  const config = (context: {
+    globalState: { get: (key: string, defaultValue: string) => string };
+  }): Config => {
+    return {
+      selectedProvider: context.globalState.get(
+        "selectedProvider",
+        "openai"
+      ) as Provider,
+      apiKeys: {
+        openai: context.globalState.get("apiKey_openai", ""),
+        deepseek: context.globalState.get("apiKey_deepseek", ""),
+        claude: context.globalState.get("apiKey_claude", ""),
+        ollama: "", // Ensuring all providers are included
+      },
+      models: {
+        openai: context.globalState.get("model_openai", "gpt-3.5-turbo"),
+        ollama: context.globalState.get("model_ollama", ""),
+        claude: context.globalState.get("model_claude", ""),
+        deepseek: context.globalState.get("model_deepseek", ""),
+      },
+      endpoints: {
+        ollama: context.globalState.get(
+          "endpointURL_ollama",
+          "http://localhost:11434/v1/"
+        ),
+      },
+      autoCompleteProvider: context.globalState.get(
+        "autocomplete_selectedProvider",
+        "openai"
+      ) as Provider,
+      autoCompleteModels: {
+        openai: context.globalState.get(
+          "autocomplete_model_openai",
+          "gpt-3.5-turbo"
+        ),
+        ollama: context.globalState.get("autocomplete_model_ollama", ""),
+        claude: context.globalState.get("autocomplete_model_claude", ""),
+        deepseek: context.globalState.get("autocomplete_model_deepseek", ""),
+      },
+      autoCompleteEndpoints: {
+        ollama: context.globalState.get(
+          "autocomplete_endpointURL_ollama",
+          "http://localhost:11434/v1/"
+        ),
+      },
+    };
   };
 
   const captureSelection = vscode.commands.registerCommand(
@@ -116,7 +159,7 @@ export function activate(context: vscode.ExtensionContext) {
       if (!panel) {
         panel = vscode.window.createWebviewPanel(
           "snippetPanel",
-          "Captured Snippets / Chat",
+          "LLM Assistant",
           vscode.ViewColumn.One,
           {
             enableScripts: true,
@@ -126,7 +169,11 @@ export function activate(context: vscode.ExtensionContext) {
             ],
           }
         );
-        panel.webview.html = getWebviewContent(context, panel.webview, initialConfig);
+        panel.webview.html = getWebviewContent(
+          context,
+          panel.webview,
+          config(context)
+        );
         panel.webview.onDidReceiveMessage((message) => {
           switch (message.command) {
             case "updateSnippet": {
@@ -179,7 +226,6 @@ export function activate(context: vscode.ExtensionContext) {
               break;
             }
             case "clearAll": {
-              // Clear all stored snippets
               snippetStore = [];
               panel!.webview.postMessage({
                 command: "update",
@@ -194,7 +240,7 @@ export function activate(context: vscode.ExtensionContext) {
               }
               vscode.window.showErrorMessage(alert);
             }
-            case "updateSetting": {
+            case "configUpdate": {
               const { key, value } = message;
               context.globalState.update(key, value);
               break;
@@ -275,7 +321,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
 
       if (panel) {
-        panel.webview.postMessage({
+        panel!.webview.postMessage({
           command: "update",
           snippets: snippetStore,
         });
@@ -286,4 +332,4 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(captureSelection);
 }
 
-export function deactivate() { }
+export function deactivate() {}
