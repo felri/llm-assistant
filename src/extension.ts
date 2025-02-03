@@ -1,10 +1,9 @@
-// Inside extensions.ts
-
+//extensions.ts
 import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
-import { callLLM, LLMResponseOptions } from "./llmApis"; // Adjust path if needed
-
+import { callLLM, LLMResponseOptions } from "./llmApis";
+import { registerAutoCompleteProvider } from "./autoComplete";
 interface Snippet {
   text: string;
   file: string;
@@ -47,6 +46,8 @@ function buildConversationPrompt(snippets: Snippet[]): string {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+  // registerAutoCompleteProvider(context);
+
   const captureSelection = vscode.commands.registerCommand(
     "extension.captureSelection",
     () => {

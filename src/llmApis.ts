@@ -7,6 +7,7 @@ export interface LLMResponseOptions {
   endpointUrl?: string; // for local server endpoints (e.g. Ollama)
   prompt: string;
   model: string;
+  maxOutputTokens?: number;
   /**
    * Callback invoked for each streaming chunk received.
    */
@@ -103,6 +104,7 @@ export async function callOllama(options: LLMResponseOptions): Promise<void> {
       model,
       messages: [{ role: "user", content: prompt }],
       stream: true,
+      max_tokens: options.maxOutputTokens ?? 2048
     });
     for await (const chunk of stream) {
       const content = chunk.choices?.[0]?.delta?.content;
