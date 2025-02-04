@@ -103,6 +103,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       endpointUrlInput.style.display = "inline";
       ollamaModel.style.display = "inline";
+      if(!ollamaModel.value) {
+        ollamaModel.value = window.initialConfig.models[provider];
+      }
 
       if (document.getElementById("endpointUrlLabel")) {
         document.getElementById("endpointUrlLabel").style.display = "inline";
@@ -114,8 +117,8 @@ document.addEventListener("DOMContentLoaded", () => {
       // For providers that use an API key.
       apiKeyInput.style.display = "inline";
       model.style.display = "inline";
-      apiKeyInput.value = window.initialConfig.apiKeys[provider] ?? "";
-
+      apiKeyInput.value = window.initialConfig.apiKeys[provider];
+      model.value = window.initialConfig.models[provider];
       if (document.getElementById("apiKeyLabel")) {
         document.getElementById("apiKeyLabel").style.display = "inline";
       }
@@ -206,9 +209,6 @@ window.addEventListener("message", (event) => {
   if (message.command === "update") {
     updateSnippetList(message.snippets);
   }
-  if (message.command === "configUpdated") {
-    loadGlobalState();
-  }
   if (message.command === "clearPrompt") {
     document.getElementById("promptInput").value = "";
   }
@@ -286,9 +286,6 @@ function updateSnippetList(snippets) {
 }
 
 function autoResize(textArea) {
-  // Reset the height to "auto" so we correctly measure when content shrinks
-  textArea.style.height = "auto";
-
   const dummy = document.createElement("div");
   const computed = window.getComputedStyle(textArea);
 
@@ -317,7 +314,7 @@ function autoResize(textArea) {
   let extraSpace = 0;
   const lineHeight = parseFloat(computed.lineHeight);
   if (!isNaN(lineHeight)) {
-    extraSpace = lineHeight * 0.3;
+    extraSpace = lineHeight * 0.5;
   } else {
     // Fallback in case the computed lineHeight isn't a number
     extraSpace = 4;

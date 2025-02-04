@@ -70,7 +70,6 @@ textarea:focus {
   box-shadow: none;
 }
 button {
-  margin-top: 0.5em;
   background-color: #1f1f1f;
   color: #ccc;
   border: 1px solid #3f3f3f;
