@@ -40,7 +40,6 @@ function loadGlobalState() {
 
   const config = window.initialConfig || {};
 
-  console.log('config', config);
   if (config.selectedProvider) {
     providerSelect.value = config.selectedProvider;
   }
@@ -359,13 +358,6 @@ document.getElementById("sendPrompt").addEventListener("click", () => {
     return;
   }
 
-  console.log("Sending prompt payload:", {
-    prompt,
-    provider,
-    apiKey,
-    model: modelValue,
-    endpointUrl,
-  });
   vscode.postMessage({
     command: "sendPrompt",
     prompt,
