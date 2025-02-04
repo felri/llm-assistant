@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { callLLM, LLMResponseOptions } from "./llmApis";
+import { getConfig } from "./config";
 
 interface AutoCompleteConfig {
   provider: string;
@@ -14,15 +15,19 @@ interface AutoCompleteConfig {
   contextBelowPercentage: number;
 }
 
-const defaultAutoCompleteConfig: AutoCompleteConfig = {
-  provider: "ollama",
-  model: "qwen2.5-coder:14b",
-  apiKey: "",
-  endpointUrl: "",
-  maxInputTokens: 2048,
-  maxOutputTokens: 128,
-  contextAbovePercentage: 1.0,
-  contextBelowPercentage: 0.0,
+const defaultAutoCompleteConfig = (context: vscode.ExtensionContext) => {
+  const config = getConfig(context);
+  return {
+    provider: config.autoCompleteProvider ?? "",
+    model: config.autoCompleteModels[config.autoCompleteProvider] ?? "",
+    apiKey: config.apiKeys[config.autoCompleteProvider] ?? "",
+    endpointUrl:
+      config.autoCompleteEndpoints[config.autoCompleteProvider] ?? "",
+    maxInputTokens: 2048,
+    maxOutputTokens: 128,
+    contextAbovePercentage: 1.0,
+    contextBelowPercentage: 0.0,
+  };
 };
 
 // Global flag to allow completions only when manually triggered.
@@ -78,9 +83,9 @@ function requestCompletion(
         aggregated += chunk;
       },
       onComplete: () => {
-        let lines = aggregated.split('\n');
-        lines = lines.filter(line => !line.includes('```'));
-        resolve(lines.join('\n').replace(/^\s+/, ''));
+        let lines = aggregated.split("\n");
+        lines = lines.filter((line) => !line.includes("```"));
+        resolve(lines.join("\n").replace(/^\s+/, ""));
       },
     };
     callLLM(config.provider, options).catch((error: Error) => {
@@ -97,6 +102,12 @@ function requestCompletion(
  * When triggered, we debounce (300ms) before extracting the context and making an LLM call.
  */
 class InlineCompletionProvider implements vscode.InlineCompletionItemProvider {
+  private extensionContext: vscode.ExtensionContext;
+
+  constructor(extensionContext: vscode.ExtensionContext) {
+    this.extensionContext = extensionContext;
+  }
+
   provideInlineCompletionItems(
     document: vscode.TextDocument,
     position: vscode.Position,
@@ -136,18 +147,16 @@ class InlineCompletionProvider implements vscode.InlineCompletionItemProvider {
         if (token.isCancellationRequested) {
           return resolve("");
         }
+
+        const config = defaultAutoCompleteConfig(this.extensionContext);
+        console.log('config auto complete', config);
         // Extract a context window from the current document.
-        const contextText = extractContext(
-          document,
-          position,
-          defaultAutoCompleteConfig
-        );
-        console.log("contextText", contextText);
+        const contextText = extractContext(document, position, config);
 
         const prompt =
           contextText +
           "\nReturn only code, nothing else, try to predict what the user wants to write in the next few tokens, one line maximum:\n";
-        requestCompletion(prompt, defaultAutoCompleteConfig)
+        requestCompletion(prompt, config)
           .then((suggestion) => {
             resolve(suggestion);
           })
@@ -176,7 +185,7 @@ export function registerAutoCompleteProvider(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.languages.registerInlineCompletionItemProvider(
       { pattern: "**" },
-      new InlineCompletionProvider()
+      new InlineCompletionProvider(context)
     )
   );
 }
